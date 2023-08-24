@@ -537,6 +537,5 @@ const routes = [{
 transition: fade-out
 ---
 ## babel-plugin-component 如何实现的按需加载
-
 https://juejin.cn/post/6847902223629090824#comment
 ---
