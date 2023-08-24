@@ -34,8 +34,6 @@ transition: fade-out
 - 🤹 **4、如何实现按需加载？** - babel-plugin-component如何实现的按需加载
 - 🎥 **5、如何圈代码复杂度** - 针对目前公司现有代码质量，如何利用AST圈复杂度
 
-写相关链接 [Why Slidev?](https://sli.dev/guide/why)
-
 <style>
 h1 {
   background-color: #2B90B6;
@@ -242,97 +240,303 @@ function compile(code) {
 
 [控制台打印行号](http://git.kg-inc.cn/fe-sy-lahuo/reinforce-log/-/blob/dev/src/index.ts)
 
+---
+
+# 如何实现代码压缩
+
+### vue2中webpack是如何实现代码压缩的
+Webpack通过使用UglifyJSPlugin插件来实现代码压缩。UglifyJSPlugin是一个用于压缩JavaScript代码的插件，它可以删除未使用的代码、注释和控制台语句，以及压缩和混淆变量名。在Vue2中，UglifyJSPlugin已经被默认包含在了Webpack的生产模式配置中，因此无需手动配置即可实现代码压缩。如果需要手动配置UglifyJSPlugin，可以在Webpack配置文件中添加以下代码：
+```js
+const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
+module.exports = {
+  plugins: [
+    new UglifyJSPlugin({
+      uglifyOptions: {
+        compress: {
+          warnings: false, // 是否显示警告信息，默认为true
+          drop_console: true, // 是否删除所有的console语句，默认为false
+          collapse_vars: true, // 是否将变量声明合并，默认为false。如果设置为true，则会将相同作用域内的变量声明合并为一个。
+          reduce_vars: true, // 是否将变量名替换为更短的名称，默认为false。如果设置为true，则会将变量名替换为更短的名称，以减小代码体积。
+        },
+        output: {
+          beautify: false, //是否美化输出，默认为false。如果设置为true，则会输出格式化后的代码，否则会输出压缩后的代码。
+          comments: false,//是否保留注释，默认为false。如果设置为true，则会保留代码中的注释，否则会删除注释。
+    }}})]
+};
+```
+
+---
+transition: fade-out
 
 ---
 
-# Diagrams
+### UglifyJS通过解析重新生成JS代码的语法树  
 
-You can create diagrams / graphs from textual descriptions, directly in your Markdown.
+以下是一些优化规则会让代码更简洁更高效 ：  
 
-<div class="grid grid-cols-4 gap-5 pt-4 -mb-6">
+- foo["bar"] ==> foo.bar
+- 合并变量声明： var a = 10; var b = 20; ==> var a=10,b=20;
+- 计算简单的常量表达式：1 + 2 * 3 ==> 7. UglifyJS只替换计算结果比实际表达式字节更少的情况；比如 1/3 结果为 0.333333333333，因此不会被替换。
+- IF语句的优化 ：  
 
-```mermaid {scale: 0.5}
-sequenceDiagram
-    Alice->John: Hello John, how are you?
-    Note over Alice,John: A typical interaction
+        if (foo) bar(); else baz(); ==> foo?bar():baz();  
+
+        if (!foo) bar(); else baz(); ==> foo?baz():bar();  
+
+        if (foo) bar(); ==> foo&&bar();  
+
+
+---
+---
+## vue3中代码是如何压缩的
+Vue3脚手架中的代码压缩是通过Vite实现的。Vite是一个基于ESM的构建工具，它使用Rollup作为打包工具，并集成了Terser插件来进行代码压缩。在Vite中，默认情况下，生产模式下的构建会自动应用Terser插件进行代码压缩，无需手动配置。  
+
+具体来说，Vite会在构建过程中使用Rollup的插件机制，将Terser插件应用于生成的代码中。Terser插件会删除未使用的代码、注释和控制台语句，以及压缩和混淆变量名，从而实现代码的压缩。  
+
+需要注意的是，由于Vite的设计理念是基于ESM模块的开发，它利用浏览器原生的ES模块加载机制，因此在开发过程中不需要像传统的Webpack那样进行代码的打包和压缩。这使得Vite在开发环境下能够实现更快的冷启动和热模块替换，提供更好的开发体验。
+
+---
+
+##  模拟UglifyJS
+为了模拟UglifyJS，我们可以编写一个简易版的代码压缩插件。具体实现过程如下：
+- 词法分析：将代码分解成单词或符号，生成一个标记流。
+- 语法分析：将标记流转换为抽象语法树（AST），并对AST进行优化。
+- 代码生成：将AST转换回代码。
+- 压缩：删除未使用的代码、注释和控制台语句，以及压缩和混淆变量名。  
+
+以下是一个简单的代码压缩插件的实现示例：  
+
+```js
+const { parse } = require('acorn');
+const { walk } = require('estree-walker');
+const { minify } = require('terser');
+module.exports = function myUglifyJSPlugin() {
+  return {
+    name: 'my-uglify-js-plugin',
+    transform(code, id) {
+      // 词法分析
+      const tokens = parse(code, { ecmaVersion: 2020 }).body;
+      
+```
+---
+transition: fade-out
+---
+```js
+      // 语法分析
+      walk(tokens, {
+        enter(node) {
+          // 删除注释(块注释、行注释)
+          if (node.type === 'BlockComment' || node.type === 'LineComment') {
+            node.skip = true; //node.skip = true 的含义是将当前节点标记为跳过。这意味着在后续的处理中，这些被标记为跳过的节点将被忽略，不会被包含在最终的压缩代码中。
+          }
+          // 删除console语句
+          if (node.type === 'CallExpression' && node.callee.name === 'console') {
+            node.skip = true;
+          }
+        },
+      });
+      // 代码生成
+      const ast = { type: 'Program', body: tokens };
+      // terser库中的minify函数来压缩AST对象。minify函数会将AST对象转换回代码，并进行压缩和混淆变量名等操作
+      const { code: minifiedCode } = minify(ast);
+      // 返回压缩后的代码
+      return {
+        code: minifiedCode,
+        map: null,
+      };
+    },
+  };
+};
+```
+---
+transition: fade-out
+---
+# 如何实现Eslint插件
+### 下面是一个将var转换为let的ESLint插件的实现示例：
+```js
+module.exports = {
+  rules: {
+    'no-var': {
+      meta: {
+        type: 'suggestion',
+        docs: {
+          description: 'disallow the use of var',
+          category: 'Best Practices',
+          recommended: true,
+        },
+        fixable: 'code',
+      },
+      create(context) {
+        return {
+          VariableDeclaration(node) {
+            if (node.kind === 'var') {
+              context.report({
+                node,
+                message: 'Unexpected var, use let or const instead.',
+                fix(fixer) {
+                  const declarations = node.declarations.map((decl) => {
+                    const { id, init } = decl;
+                   
 ```
 
-```mermaid {theme: 'neutral', scale: 0.8}
-graph TD
-B[Text] --> C{Decision}
-C -->|One| D[Result 1]
-C -->|Two| E[Result 2]
+---
+transition: fade-out
+---
+```js
+ return fixer.replaceText(
+                      decl,
+                      `${init ? 'let' : 'const'} ${context.getSourceCode().getText(id)} = ${context.getSourceCode().getText(init)}`
+                    );
+                  });
+                  return fixer.replaceText(node, declarations.join(','));
+};
+```
+<div font-size="12px">
+在上面的代码中，我们定义了一个ESLint插件规则，用于检查代码中是否使用了var关键字。如果检测到使用了var关键字，就会报告一个错误，并提供一个自动修复的选项，将var关键字替换为let或const关键字。  
+
+ 具体来说，我们使用ESLint提供的API来定义自定义规则。在create函数中，我们返回一个对象，该对象包含了一个VariableDeclaration属性，用于检查变量声明语句。如果变量声明语句的kind属性为var，就会报告一个错误，并提供一个自动修复的选项。在自动修复的过程中，我们使用fixer.replaceText()方法来替换var关键字为let或const关键字，并保留变量名和初始值。  
+
+ 最后，我们将插件规则添加到.eslintrc.js文件中，从而使ESLint能够应用该规则。在.eslintrc.js文件中，我们将插件添加到plugins数组中，并配置插件的规则。例如，我们可以将上面的插件规则添加到.eslintrc.js文件中的rules对象中，如下所示：  
+</div>
+```js
+module.exports = {
+  // ...
+  plugins: ['my-eslint-plugin'],
+  rules: {
+    'my-eslint-plugin/no-var': 'error',
+}};
+<!-- 这样，ESLint就会在检查代码时应用我们定义的插件规则，从而实现将var关键字替换为let或const关键字的功能。 -->
 ```
 
-```mermaid
-mindmap
-  root((mindmap))
-    Origins
-      Long history
-      ::icon(fa fa-book)
-      Popularisation
-        British popular psychology author Tony Buzan
-    Research
-      On effectivness<br/>and features
-      On Automatic creation
-        Uses
-            Creative techniques
-            Strategic planning
-            Argument mapping
-    Tools
-      Pen and paper
-      Mermaid
-```
+---
+transition: fade-out
+---
+# 如何实现按需加载
+## 前言  
+### Vue 为什么需要懒加载（按需加载）？  
+<br/>
+<div font-size="12px">
+学习Vue的时候，各类教程都会告诉我们：Vue 的特点是SPA——Single Page Application（单页应用程序）。它有着诸如：“只有第一次会加载页面, 以后的每次页面切换，只需要进行组件替换；减少了请求体积，加快页面响应速度，降低了对服务器的压力” 等等优点。
 
-```plantuml {scale: 0.7}
-@startuml
+但是呢！因为Vue 是SPA，所以首页第一次加载时会把所有的组件以及组件相关的资源全都加载了。这样就会导致首页加载时加载了许多首页用不上的资源，造成网站首页打开速度变慢的问题，降低用户体验。
 
-package "Some Group" {
-  HTTP - [First Component]
-  [Another Component]
-}
+为了解决上面问题，我们需要对Vue实现组件懒加载（按需加载）。
 
-node "Other Groups" {
-  FTP - [Second Component]
-  [First Component] --> FTP
-}
+#### 什么是懒加载（按需加载）？  
 
-cloud {
-  [Example 1]
-}
+ 懒加载或者按需加载，是一种很好的优化网页或应用的方式。这种方式实际上是先把你的代码在一些逻辑断点处分离开，然后在一些代码块中完成某些操作后，立即引用或即将引用另外一些新的代码块。这样加快了应用的初始加载速度，减轻了它的总体体积，因为某些代码块可能永远不会被加载。  
 
+ [《webpack——懒加载》](https://webpack.docschina.org/guides/lazy-loading/)  
 
-database "MySql" {
-  folder "This is my folder" {
-    [Folder 3]
-  }
-  frame "Foo" {
-    [Frame 4]
-  }
-}
-
-
-[Another Component] --> [Example 1]
-[Example 1] --> [Folder 3]
-[Folder 3] --> [Frame 4]
-
-@enduml
-```
 
 </div>
 
-[Learn More](https://sli.dev/guide/syntax.html#diagrams)
+---
+transition: fade-out
+---
+#### 懒加载（按需加载）的前提
+<div font-size="12px">
+
+进行懒加载的子模块（子组件）需要是一个单独的文件。
+为什么呢？因为懒加载是对子模块（子组件）进行延后加载。如果子模块（子组件）不单独打包，而是和别的模块掺和在一起，那其他模块加载时就会将整个文件加载出来了。这样子模块（子组件）就被提前加载出来了。
+
+所以，要实现懒加载，就得先将进行懒加载的子模块（子组件）分离出来。  
+
+懒加载前提的实现：ES6的动态地加载模块——import()。
+ 调用 import() 之处，被作为分离的模块起点，意思是，被请求的模块和它引用的所有子模块，会分离到一个单独的 chunk 中。  
+
+[《webpack——模块方法》的import()小节](https://webpack.docschina.org/api/module-methods/#import-)
+  
+  简单来讲就是，通过import()引用的子模块会被单独分离出来，打包成一个单独的文件（打包出来的文件被称为chunk ）。
+
+  依照webpack原本的打包规则打包项目，我们就无法确定子模块在打包出来的哪个JS文件中，而且子模块的代码会和其他代码混合在同一个文件中。这样就无法进行懒加载操作。所以，要实现懒加载，就得保证懒加载的子模块代码单独打包在一个文件中。
+</div>
 
 ---
-src: ./pages/multiple-entries.md
-hide: false
+transition: fade-out
 ---
+### 代码示例：
+构建一个简单的webpack项目：  
+
+1、首先，webpack.config.js 文件配置如下：
+```js
+/*webpack.config.js*/
+const path = require('path')
+module.exports = { 
+    entry:'./src/main.js', //入口文件
+    output: { 
+        path: path.resolve(__dirname, 'dist'),
+        chunkFilename: '[name].bundle.js',
+        filename: 'bundle.js',
+}}
+```
+2、创建入口文件main.js
+```js
+/* main.js */
+// 这里引入con.js，注意没有使用import()
+require('./con.js')
+```
+3、创建被引入文件con.js
+```js
+/* con.js */
+function cons(){console.log("123")}
+module.exports = {cons}
+```
 
 ---
-layout: center
-class: text-center
+transition: fade-out
 ---
+运行npm run build进行打包,结果如下：
+![Alt text](image.png)  
+<div font-size="12px">
+使用require()引入con.js，打包后的结果是con.js合并到的bundle.js  
 
-# Learn More
+接下来，使用import()引入con.js：
+</div>
+```js
+/* main.js 这里使用import()引入con.js*/
+import(/* webpackChunkName: "con" */ './con.js')
+```
+打包结果如下：  
 
-[Documentations](https://sli.dev) · [GitHub](https://github.com/slidevjs/slidev) · [Showcases](https://sli.dev/showcases.html)
+![](https://kgimages.kgdc.cn/suyun/ceb57b0cbc8c51e99242d4351ad98aac.png) <br/>
+<div font-size="12px">
+使用import()引入con.js，con.js打包成独立的js文件。  
+这里设定了chunkFilename的命名规则为：[name]+.+bundle.js。这里的[name]就是/* webpackChunkName: "con" */设定的值。
+</div>
+
+---
+transition: fade-out
+---
+<div font-size="12px">
+借助import()，我们实现了子模块（子组件）的独立打包（children chunk）。现在，距离实现懒加载（按需加载） 还差关键的一步——如何正确使用独立打包的子模块文件（children chunk）实现懒加载。这也是懒加载的原理。
+
+借助函数实现懒加载（按需加载）
+首先，我们先来回顾一下JavaScript函数的特性。
+无论使用函数声明还是函数表达式创建函数，函数被创建后并不会立即执行函数内部的代码，只有等到函数被调用之后，才执行内部的代码。
+
+- 只要将需要进行懒加载的子模块文件（children chunk）的引入语句（本文特指import()）放到一个函数内部。然后在需要加载的时候再执行该函数。这样就可以实现懒加载（按需加载）。这也是懒加载的原理了。
+</div>
+
+```js
+const routes = [{ 
+  path: '/',
+  name: 'Home',
+  // 将子组件加载语句封装到一个function中，将function赋给component
+  component: () => import( /* webpackChunkName: "home" */ '../views/Home.vue')
+}
+]
+```  
+
+除了ES6 的import()这个方法，webpack本身还提供了另一个方法—— require.ensure()
+
+[《webpack——module-methods：require.ensure》](https://webpack.docschina.org/api/module-methods#require-ensure)
+
+
+---
+transition: fade-out
+---
+## babel-plugin-component 如何实现的按需加载
+
+
+---
