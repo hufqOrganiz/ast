@@ -8,15 +8,32 @@ jobs:
   push-to-gh-pages:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Use node version
+      - name: Checkout
+      - uses: actions/checkout@v3
+
+      - name: Setup Node
         uses: actions/setup-node@main
         with:
           node-version: 14
+          cache: 'npm'
           
-      - name: Npm install
+      - name: Install dependencies
         run: npm install
 
-      - name: Build dist
+      - name: Build
         run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          # Upload dist repository
+          path: './dist'
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
+
       
