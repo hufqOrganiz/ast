@@ -8,6 +8,7 @@ jobs:
   push-to-gh-pages:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - name: Use node version
         uses: actions/setup-node@main
         with:
