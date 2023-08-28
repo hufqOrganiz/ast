@@ -1,0 +1,20 @@
+name: deploy
+
+on: 
+  push:
+    branches:
+      - main
+jobs:
+  push-to-gh-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use node version
+        with:
+          node-version: 14
+          
+      - name: Npm install
+        run: npm install
+
+      - name: Build dist
+        run: npm run build
+      
