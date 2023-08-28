@@ -487,7 +487,10 @@ module.exports = {cons}
 transition: fade-out
 ---
 运行npm run build进行打包,结果如下：
-![Alt text](image.png)  
+dist  
+
+ bundle.js  
+ 
 <div font-size="12px">
 使用require()引入con.js，打包后的结果是con.js合并到的bundle.js  
 
