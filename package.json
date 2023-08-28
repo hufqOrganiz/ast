@@ -9,9 +9,11 @@
   "dependencies": {
     "@slidev/cli": "^0.42.9",
     "@slidev/theme-default": "latest",
-    "@slidev/theme-seriph": "latest"
+    "@slidev/theme-seriph": "latest",
+    "kg-pes": "^1.1.0"
   },
   "devDependencies": {
-    "@iconify-json/la": "^1.1.5"
+    "@iconify-json/la": "^1.1.5",
+    "babel-plugin-component": "^1.1.1"
   }
 }

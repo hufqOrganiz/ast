@@ -538,4 +538,71 @@ transition: fade-out
 ---
 ## babel-plugin-component 如何实现的按需加载
 https://juejin.cn/post/6847902223629090824#comment
+
+/node_modules/babel-plugin-component/lib/core.js
+
+```js
+// 源代码
+import { Button } from 'element-ui'
+Vue.use(Button)
+// 目标代码
+var Button = require('element-ui/lib/button.js')
+require('element-ui/lib/theme-chalk/button.css')
+
+```  
+
+- 要知道babel入口位置在visitor，以及在visitor中找哪些方法去读   <br/>
+
+- 用AST Explorer分析和对比我们的源代码和目标代码
+
+---
+transition: fade-out
+---
+# 如何利用AST圈复杂度
+```js
+const parser = require('@babel/parser');
+const traverse = require('@babel/traverse');
+function calculateCyclomaticComplexity(code) {
+  const ast = parser.parse(code);
+  let complexity = 1; // 默认圈复杂度为1，表示函数的起始节点
+  traverse.default(ast, {
+    IfStatement() {
+      complexity++;
+    },
+    WhileStatement() {
+      complexity++;
+    },
+    ForStatement() {
+      complexity++;
+    },
+    SwitchStatement() {
+      complexity++;
+    },
+    LogicalExpression() { // || 
+      complexity++;
+    },
+    ConditionalExpression() { // boolean ? 'a' : 'b'
+      complexity++;
+    },
+  });
+```
+---
+transition: fade-out
+---
+```js
+  return complexity;
+}
+// 示例代码
+const code = `
+function foo(x) {
+  if (x > 0) {
+    console.log("Positive");
+  } else {
+    console.log("Non-positive");
+  }
+}
+`;
+const complexity = calculateCyclomaticComplexity(code);
+console.log("代码的圈复杂度为:", complexity);
+```
 ---
