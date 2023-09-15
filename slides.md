@@ -364,15 +364,14 @@ module.exports = {
         fixable: 'code',
       },
       create(context) {
-        return {
-          VariableDeclaration(node) {
-            if (node.kind === 'var') {
-              context.report({
-                node,
-                message: 'Unexpected var, use let or const instead.',
-                fix(fixer) {
-                  const declarations = node.declarations.map((decl) => {
-                    const { id, init } = decl;
+    return {
+      VariableDeclaration(node) {
+        if (node.kind === "var") {
+          context.report({
+            node,
+            message: "Unexpected var, use let or const instead.",
+            fix(fixer) {
+              return fixer.replaceText(node.kind, "let");
                    
 ```
 
@@ -380,13 +379,13 @@ module.exports = {
 transition: fade-out
 ---
 ```js
- return fixer.replaceText(
-                      decl,
-                      `${init ? 'let' : 'const'} ${context.getSourceCode().getText(id)} = ${context.getSourceCode().getText(init)}`
-                    );
-                  });
-                  return fixer.replaceText(node, declarations.join(','));
-};
+ 
+            },
+          });
+        }
+      },
+    };
+  },
 ```
 <div font-size="12px">
 在上面的代码中，我们定义了一个ESLint插件规则，用于检查代码中是否使用了var关键字。如果检测到使用了var关键字，就会报告一个错误，并提供一个自动修复的选项，将var关键字替换为let或const关键字。  
